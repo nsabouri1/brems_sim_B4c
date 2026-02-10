@@ -1,2 +1,0 @@
-material W
-thickness .1
