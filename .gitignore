@@ -1,0 +1,13 @@
+# Build / generated
+build/
+CMakeFiles/
+CMakeCache.txt
+Makefile
+cmake_install.cmake
+
+# Local editor / OS
+.vscode/
+.DS_Store
+
+# Outputs (optional — comment out if you WANT to track them)
+*.root
