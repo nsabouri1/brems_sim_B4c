@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "plotNtuple.C": "cpp",
+        "plotHisto.C": "cpp",
+        "iosfwd": "cpp"
+    }
+}

@@ -1,103 +1,113 @@
-//
-// ********************************************************************
-// * License and Disclaimer                                           *
-// *                                                                  *
-// * The  Geant4 software  is  copyright of the Copyright Holders  of *
-// * the Geant4 Collaboration.  It is provided  under  the terms  and *
-// * conditions of the Geant4 Software License,  included in the file *
-// * LICENSE and available at  http://cern.ch/geant4/license .  These *
-// * include a list of copyright holders.                             *
-// *                                                                  *
-// * Neither the authors of this software system, nor their employing *
-// * institutes,nor the agencies providing financial support for this *
-// * work  make  any representation or  warranty, express or implied, *
-// * regarding  this  software system or assume any liability for its *
-// * use.  Please see the license in the file  LICENSE  and URL above *
-// * for the full disclaimer and the limitation of liability.         *
-// *                                                                  *
-// * This  code  implementation is the result of  the  scientific and *
-// * technical work of the GEANT4 collaboration.                      *
-// * By using,  copying,  modifying or  distributing the software (or *
-// * any work based  on the software)  you  agree  to acknowledge its *
-// * use  in  resulting  scientific  publications,  and indicate your *
-// * acceptance of all terms of the Geant4 Software license.          *
-// ********************************************************************
-//
-//
 /// \file B4/B4c/src/PrimaryGeneratorAction.cc
 /// \brief Implementation of the B4::PrimaryGeneratorAction class
 
 #include "PrimaryGeneratorAction.hh"
 
 #include "G4Box.hh"
+#include "G4Event.hh"
 #include "G4LogicalVolume.hh"
+#include "G4RandomTools.hh"
+#include "G4ThreeVector.hh"
 #include "G4LogicalVolumeStore.hh"
 #include "G4ParticleGun.hh"
 #include "G4ParticleTable.hh"
 #include "G4SystemOfUnits.hh"
-#include "globals.hh"
+#include "G4GeneralParticleSource.hh"
+#include "G4AnalysisManager.hh"
+
+#include <fstream>
+#include <sstream>
+#include <random>
+#include <iostream>
 
 namespace B4
 {
 
-//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
-
 PrimaryGeneratorAction::PrimaryGeneratorAction()
 {
-  G4int nofParticles = 1;
-  fParticleGun = new G4ParticleGun(nofParticles);
+  // Create GPS, General Particle Source, for position and direction control
+  fParticleGun = new G4GeneralParticleSource;
 
-  // default particle kinematic
-  //
-  auto particleDefinition = G4ParticleTable::GetParticleTable()->FindParticle("e-");
-  fParticleGun->SetParticleDefinition(particleDefinition);
-  fParticleGun->SetParticleMomentumDirection(G4ThreeVector(0., 0., 1.));
-  fParticleGun->SetParticleEnergy(300. * MeV);
+  // Particle type: electron
+  const G4String particleName = "e-";
+  auto* particle = G4ParticleTable::GetParticleTable()->FindParticle(particleName);
+  fParticleGun->SetParticleDefinition(particle);
+  fParticleGun->GetCurrentSource()->GetAngDist()->SetParticleMomentumDirection(G4ThreeVector(0., 0., 1.));
+
+  // Load GALADRIEL spectrumc from macro: energy (MeV), probability
+  LoadSpectrum("spectrum_new.mac");
+
+  G4cout << "[PrimaryGeneratorAction] Loaded " << fEnergies.size()
+         << " energy points from spectrum_new.mac" << G4endl;
+
+  if (fEnergies.empty() || fProbabilities.empty()) {
+    G4cerr << "Error: Spectrum data not loaded correctly." << G4endl;
+  }
 }
-
-//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
 PrimaryGeneratorAction::~PrimaryGeneratorAction()
 {
   delete fParticleGun;
 }
 
-//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+void PrimaryGeneratorAction::LoadSpectrum(const std::string& filename)
+{
+  std::ifstream infile(filename);
+  if (!infile.is_open()) {
+    G4cerr << "Error: Could not open spectrum file: " << filename << G4endl;
+    return;
+  }
+
+  std::string line;
+  while (std::getline(infile, line)) {
+    std::istringstream iss(line);
+    std::string cmd;
+    double E, P;
+    if (iss >> cmd >> E >> P) {
+      fEnergies.push_back(E * MeV);
+      fProbabilities.push_back(P);
+    }
+  }
+
+  if (fEnergies.empty())
+    G4cerr << "WARNING: No energy points found in spectrum file." << G4endl;
+}
+
+double PrimaryGeneratorAction::SampleEnergy() const
+{
+  // Protect against empty spectrum
+  if (fEnergies.empty()) return 1.0 * MeV;
+
+  // Normalize probabilities
+  double total = 0.0;
+  for (auto p : fProbabilities) total += p;
+
+  std::vector<double> norm_probs;
+  norm_probs.reserve(fProbabilities.size());
+  for (auto p : fProbabilities) norm_probs.push_back(p / total);
+
+  // Random sampling according to probability distribution
+  static std::random_device rd;
+  static std::mt19937 gen(rd());
+  std::discrete_distribution<> dist(norm_probs.begin(), norm_probs.end());
+  int index = dist(gen);
+
+  return fEnergies[index];
+}
 
 void PrimaryGeneratorAction::GeneratePrimaries(G4Event* event)
 {
-  // This function is called at the begining of event
+  // Sample an energy from the loaded spectrum
+  G4double sampledEnergy = SampleEnergy();
+  fParticleGun->GetCurrentSource()->GetEneDist()->SetMonoEnergy(sampledEnergy);
 
-  // In order to avoid dependence of PrimaryGeneratorAction
-  // on DetectorConstruction class we get world volume
-  // from G4LogicalVolumeStore
-  //
-  G4double worldZHalfLength = 0.;
-  auto worldLV = G4LogicalVolumeStore::GetInstance()->GetVolume("World");
-
-  // Check that the world volume has box shape
-  G4Box* worldBox = nullptr;
-  if (worldLV) {
-    worldBox = dynamic_cast<G4Box*>(worldLV->GetSolid());
-  }
-
-  if (worldBox) {
-    worldZHalfLength = worldBox->GetZHalfLength();
-  }
-  else {
-    G4ExceptionDescription msg;
-    msg << "World volume of box shape not found." << G4endl;
-    msg << "Perhaps you have changed geometry." << G4endl;
-    msg << "The gun will be place in the center.";
-    G4Exception("PrimaryGeneratorAction::GeneratePrimaries()", "MyCode0002", JustWarning, msg);
-  }
-
-  // Set gun position
-  fParticleGun->SetParticlePosition(G4ThreeVector(0., 0., -worldZHalfLength));
-
+  // Generate the event
   fParticleGun->GeneratePrimaryVertex(event);
+
+  // Optional: fill analysis histogram
+  auto* analysisManager = G4AnalysisManager::Instance();
+  if (analysisManager)
+    analysisManager->FillH1(0, sampledEnergy / MeV);
 }
 
-//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
-
-}  // namespace B4
+} // namespace B4

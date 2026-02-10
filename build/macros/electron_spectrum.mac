@@ -1,0 +1,11 @@
+
+# Particle spectrum definition
+/gps/particle e-
+/gps/ene/type User
+/gps/hist/type energy
+/control/execute spectrum_new.mac
+
+# Position and direction
+/gps/pos/centre 0 0 -1 cm
+/gps/direction 0 0 1
+

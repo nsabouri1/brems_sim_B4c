@@ -1,0 +1,120 @@
+Material: G4_W, Thickness: 0.1 mm
+Output file: output_G4_W_0.1mm.txt
+
+Material: G4_W, Thickness: 0.25 mm
+Output file: output_G4_W_0.25mm.txt
+
+Material: G4_W, Thickness: 0.5 mm
+Output file: output_G4_W_0.5mm.txt
+
+Material: G4_W, Thickness: 1 mm
+Output file: output_G4_W_1mm.txt
+
+Material: G4_Pb, Thickness: 0.1 mm
+Output file: output_G4_Pb_0.1mm.txt
+
+Material: G4_Pb, Thickness: 0.25 mm
+Output file: output_G4_Pb_0.25mm.txt
+
+Material: G4_Pb, Thickness: 0.5 mm
+Output file: output_G4_Pb_0.5mm.txt
+
+Material: G4_Pb, Thickness: 1 mm
+Output file: output_G4_Pb_1mm.txt
+
+Material: G4_Ta, Thickness: 0.1 mm
+Output file: output_G4_Ta_0.1mm.txt
+
+Material: G4_Ta, Thickness: 0.25 mm
+Output file: output_G4_Ta_0.25mm.txt
+
+Material: G4_Ta, Thickness: 0.5 mm
+Output file: output_G4_Ta_0.5mm.txt
+
+Material: G4_Ta, Thickness: 1 mm
+Output file: output_G4_Ta_1mm.txt
+
+Material: G4_Ta, Thickness: 1 mm
+Output file: output_G4_Ta_1mm.txt
+
+Material: G4_Al, Thickness: 0.1 mm
+Output file: output_G4_Al_0.1mm.txt
+
+Material: G4_Al, Thickness: 0.25 mm
+Output file: output_G4_Al_0.25mm.txt
+
+Material: G4_Al, Thickness: 0.5 mm
+Output file: output_G4_Al_0.5mm.txt
+
+Material: G4_Al, Thickness: 1 mm
+Output file: output_G4_Al_1mm.txt
+
+Material: G4_Al, Thickness: 1 mm
+Output file: output_G4_Al_1mm.txt
+
+Material: G4_Al, Thickness: 1 mm
+Output file: output_G4_Al_1mm.txt
+
+Material: G4_Al, Thickness: 1 mm
+Output file: output_G4_Al_1mm.txt
+
+Material: G4_Al, Thickness: 1 mm
+Output file: output_G4_Al_1mm.txt
+
+Material: G4_Al, Thickness: 1 mm
+Output file: output_G4_Al_1mm.txt
+
+Material: G4_W, Thickness: 0.5 mm
+Output file: output_G4_W_0.5mm.txt
+
+Material: G4_W, Thickness: 0.1 mm
+Output file: output_G4_W_0.1mm.txt
+
+Material: G4_W, Thickness: 1 mm
+Output file: output_G4_W_1mm.txt
+
+Material: G4_Pb, Thickness: 1 mm
+Output file: output_G4_Pb_1mm.txt
+
+Material: G4_Pb, Thickness: 1 mm
+Output file: output_G4_Pb_1mm.txt
+
+Material: G4_Pb, Thickness: 1 mm
+Output file: output_G4_Pb_1mm.txt
+
+Material: G4_Pb, Thickness: 0.5 mm
+Output file: output_G4_Pb_0.5mm.txt
+
+Material: G4_Pb, Thickness: 0.25 mm
+Output file: output_G4_Pb_0.25mm.txt
+
+Material: G4_Pb, Thickness: 0.1 mm
+Output file: output_G4_Pb_0.1mm.txt
+
+Material: G4_Ta, Thickness: 0.1 mm
+Output file: output_G4_Ta_0.1mm.txt
+
+Material: G4_Ta, Thickness: 0.25 mm
+Output file: output_G4_Ta_0.25mm.txt
+
+Material: G4_Ta, Thickness: 0.5 mm
+Output file: output_G4_Ta_0.5mm.txt
+
+Material: G4_Ta, Thickness: 1 mm
+Output file: output_G4_Ta_1mm.txt
+
+Material: G4_Ta, Thickness: 1 mm
+Output file: output_G4_Ta_1mm.txt
+
+Material: G4_Ta, Thickness: 1 mm
+Output file: output_G4_Ta_1mm.txt
+
+Material: G4_Ta, Thickness: 1 mm
+Output file: output_G4_Ta_1mm.txt
+
+Material: G4_W, Thickness: 0.25 mm
+Output file: output_G4_W_0.25mm.txt
+
+Material: G4_W, Thickness: 0.1 mm
+Output file: output_G4_W_0.1mm.txt
+

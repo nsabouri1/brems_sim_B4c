@@ -1,0 +1,3 @@
+/Users/nikasabouri/documents/brems_sim_B4c/build/CMakeFiles/brems_sim_b4c.dir
+/Users/nikasabouri/documents/brems_sim_B4c/build/CMakeFiles/edit_cache.dir
+/Users/nikasabouri/documents/brems_sim_B4c/build/CMakeFiles/rebuild_cache.dir
