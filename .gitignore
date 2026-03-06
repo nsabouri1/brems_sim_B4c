@@ -1,13 +1,17 @@
-# Build / generated
-build/
-CMakeFiles/
-CMakeCache.txt
-Makefile
-cmake_install.cmake
+# Python
+venv/
+__pycache__/
+*.pyc
 
-# Local editor / OS
-.vscode/
+# Build artifacts
+build/
+cmake-build-*/
+
+# macOS
 .DS_Store
 
-# Outputs (optional — comment out if you WANT to track them)
+# Geant4 / output
 *.root
+outputdata.txt
+build/Data/
+*.png

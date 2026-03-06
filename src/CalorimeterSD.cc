@@ -17,7 +17,7 @@ CalorimeterSD::CalorimeterSD(const G4String& name,const G4String& hitsCollection
   : G4VSensitiveDetector(name), fNofCells(nofCells)
 {
   collectionName.insert(hitsCollectionName);
-outputFile.open("outputdata.txt",std::ios::out | std::ios::trunc);
+outputFile.open("Data/outputdata.txt",std::ios::out | std::ios::trunc);
  if (outputFile.is_open()) {
    // Write header only if file is empty
    outputFile.seekp(0, std::ios::end);
