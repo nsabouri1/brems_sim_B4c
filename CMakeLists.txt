@@ -47,9 +47,9 @@ set(EXAMPLEB4C_SCRIPTS
   )
 
 #foreach(_script ${EXAMPLEB4C_SCRIPTS})
-  # configure_file(
-   # ${PROJECT_SOURCE_DIR}/${_script}
-   # ${PROJECT_BINARY_DIR}/${_script}
-   # COPYONLY
-   # )
+#  configure_file(
+ #  ${PROJECT_SOURCE_DIR}/${_script}
+  # ${PROJECT_BINARY_DIR}/${_script}
+ #  COPYONLY
+  # )
 #endforeach()

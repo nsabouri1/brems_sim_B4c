@@ -38,6 +38,7 @@ private:
   G4GeneralParticleSource* fParticleGun;   // Geant4’s flexible particle source
   std::vector<double> fEnergies;           // Energies (in MeV)
   std::vector<double> fProbabilities;      // Corresponding probabilities
+  std::vector<double> fCDF;                // Cumulative distribution for thread-safe sampling
 };
 
 } // namespace B4

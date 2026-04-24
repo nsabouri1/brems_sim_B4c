@@ -15,10 +15,12 @@
 #include "G4GeneralParticleSource.hh"
 #include "G4AnalysisManager.hh"
 
+#include "Randomize.hh"
 #include <fstream>
 #include <sstream>
-#include <random>
 #include <iostream>
+#include <algorithm>
+#include <numeric>
 
 namespace B4
 {
@@ -34,15 +36,28 @@ PrimaryGeneratorAction::PrimaryGeneratorAction()
   fParticleGun->SetParticleDefinition(particle);
   fParticleGun->GetCurrentSource()->GetAngDist()->SetParticleMomentumDirection(G4ThreeVector(0., 0., 1.));
 
-  // Load GALADRIEL spectrumc from macro: energy (MeV), probability
-  LoadSpectrum("spectrum_new.mac");
+  // Load spectrum — path is relative to the build directory where you run from.
+  // spectrum_new.mac lives in macros/ alongside your other macro files.
+  LoadSpectrum("macros/spectrum_new.mac");
 
   G4cout << "[PrimaryGeneratorAction] Loaded " << fEnergies.size()
-         << " energy points from spectrum_new.mac" << G4endl;
+         << " energy points from macros/spectrum_new.mac" << G4endl;
 
   if (fEnergies.empty() || fProbabilities.empty()) {
-    G4cerr << "Error: Spectrum data not loaded correctly." << G4endl;
+    G4cerr << "Error: Spectrum data not loaded correctly from macros/spectrum_new.mac" << G4endl;
+    G4cerr << "Make sure you are running from the build/ directory and macros/spectrum_new.mac exists." << G4endl;
   }
+
+  // Build cumulative distribution function for fast thread-safe sampling
+  double total = 0.0;
+  for (auto p : fProbabilities) total += p;
+  fCDF.reserve(fProbabilities.size());
+  double cumulative = 0.0;
+  for (auto p : fProbabilities) {
+    cumulative += p / total;
+    fCDF.push_back(cumulative);
+  }
+  fCDF.back() = 1.0; // ensure last bin catches rounding
 }
 
 PrimaryGeneratorAction::~PrimaryGeneratorAction()
@@ -76,21 +91,21 @@ void PrimaryGeneratorAction::LoadSpectrum(const std::string& filename)
 double PrimaryGeneratorAction::SampleEnergy() const
 {
   // Protect against empty spectrum
-  if (fEnergies.empty()) return 1.0 * MeV;
+  if (fEnergies.empty() || fCDF.empty()) return 1.0 * MeV;
 
-  // Normalize probabilities
-  double total = 0.0;
-  for (auto p : fProbabilities) total += p;
+  // Use Geant4's thread-safe RNG (G4UniformRand) — safe in MT mode.
+  // std::mt19937 with static storage is NOT thread-safe and corrupts
+  // the random state across threads, causing all samples to collapse
+  // to low energies.
 
-  std::vector<double> norm_probs;
-  norm_probs.reserve(fProbabilities.size());
-  for (auto p : fProbabilities) norm_probs.push_back(p / total);
+  // Build cumulative distribution once (fCDF is built in constructor)
+  double r = G4UniformRand();
 
-  // Random sampling according to probability distribution
-  static std::random_device rd;
-  static std::mt19937 gen(rd());
-  std::discrete_distribution<> dist(norm_probs.begin(), norm_probs.end());
-  int index = dist(gen);
+  // Binary search for the bin
+  auto it = std::lower_bound(fCDF.begin(), fCDF.end(), r);
+  int index = static_cast<int>(std::distance(fCDF.begin(), it));
+  if (index >= static_cast<int>(fEnergies.size()))
+    index = static_cast<int>(fEnergies.size()) - 1;
 
   return fEnergies[index];
 }

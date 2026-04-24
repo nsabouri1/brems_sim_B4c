@@ -10,16 +10,28 @@
 #include "G4UIExecutive.hh"
 #include "G4UImanager.hh"
 #include "G4VisExecutive.hh"
+#include "Randomize.hh"
+#include <ctime>
 
 int main(int argc, char** argv)
 {
-    // Verbose units for stepping
     G4SteppingVerbose::UseBestUnit(4);
+    CLHEP::HepRandom::setTheSeed(std::time(nullptr));
 
-    // Construct the run manager
-    auto runManager = G4RunManagerFactory::CreateRunManager(G4RunManagerType::SerialOnly);
+    // GUI mode (no args) → Serial to avoid MT/vis crash on beamOn
+    // Batch mode (-m macro) → MT for full speed
+    bool batchMode = (argc == 3 && std::string(argv[1]) == "-m");
 
-    // Set mandatory initialization classes
+    G4RunManager* runManager = nullptr;
+    if (batchMode) {
+        runManager = G4RunManagerFactory::CreateRunManager(G4RunManagerType::MTOnly);
+        static_cast<G4MTRunManager*>(runManager)->SetNumberOfThreads(0); // all cores
+        G4cout << "[main] Batch mode: multithreaded" << G4endl;
+    } else {
+        runManager = G4RunManagerFactory::CreateRunManager(G4RunManagerType::SerialOnly);
+        G4cout << "[main] GUI mode: serial (MT disabled to prevent vis crash)" << G4endl;
+    }
+
     auto detConstruction = new B4c::DetectorConstruction();
     runManager->SetUserInitialization(detConstruction);
 
@@ -30,47 +42,27 @@ int main(int argc, char** argv)
     auto actionInitialization = new B4c::ActionInitialization();
     runManager->SetUserInitialization(actionInitialization);
 
-    // Initialize visualization manager
     auto visManager = new G4VisExecutive;
     visManager->Initialize();
 
-    // Get the UI manager
     auto UImanager = G4UImanager::GetUIpointer();
 
-    // Start GUI if no macro is provided
-    G4UIExecutive* ui = nullptr;
-    if (argc == 1) {
-        ui = new G4UIExecutive(argc, argv);
-
-        // Execute your run macro first
-        UImanager->ApplyCommand("/control/execute run1.mac");
-
-        // Initialize visualization
+    if (!batchMode) {
+        // GUI / interactive mode — serial
+        auto ui = new G4UIExecutive(argc, argv);
+        UImanager->ApplyCommand("/control/execute macros/run1.mac");
         UImanager->ApplyCommand("/control/execute macros/init_vis.mac");
         UImanager->ApplyCommand("/control/execute macros/vis.mac");
-
-        // Optional GUI macros
-        if (ui->IsGUI()) {
+        if (ui->IsGUI())
             UImanager->ApplyCommand("/control/execute macros/gui.mac");
-        }
-
-        // Start interactive session
         ui->SessionStart();
         delete ui;
-    }
-    else if (argc == 3 && std::string(argv[1]) == "-m") {
-        // Batch mode
-        G4String command = "/control/execute ";
-        UImanager->ApplyCommand(command + G4String(argv[2]));
-    }
-    else {
-        G4cerr << "Usage: " << G4endl;
-        G4cerr << "./brems_sim_b4c          (interactive GUI)" << G4endl;
-        G4cerr << "./brems_sim_b4c -m macro (batch mode)" << G4endl;
-        return 1;
+    } else {
+        // Batch mode — MT, no vis
+        UImanager->ApplyCommand("/control/execute " + G4String(argv[2]));
     }
 
-    // Clean up
     delete visManager;
     delete runManager;
+    return 0;
 }

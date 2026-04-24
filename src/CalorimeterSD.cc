@@ -2,33 +2,52 @@
 /// \brief Implementation of the B4c::CalorimeterSD class
 
 #include "CalorimeterSD.hh"
+#include "DetectorConstruction.hh"
+
 #include "G4HCofThisEvent.hh"
 #include "G4SDManager.hh"
 #include "G4Step.hh"
 #include "G4RunManager.hh"
 #include "G4SystemOfUnits.hh"
-#include <fstream>
-#include <iomanip>
+#include "G4Threading.hh"
 
 namespace B4c
 {
 
-CalorimeterSD::CalorimeterSD(const G4String& name,const G4String& hitsCollectionName, G4int nofCells)
+CalorimeterSD::CalorimeterSD(const G4String& name,
+                             const G4String& hitsCollectionName,
+                             G4int nofCells)
   : G4VSensitiveDetector(name), fNofCells(nofCells)
 {
   collectionName.insert(hitsCollectionName);
-outputFile.open("Data/outputdata.txt",std::ios::out | std::ios::trunc);
- if (outputFile.is_open()) {
-   // Write header only if file is empty
-   outputFile.seekp(0, std::ios::end);
-   if (outputFile.tellp() == 0) {
-       outputFile << "EventID,TrackID,ParentID,Particle,KineticEnergy,Volume,DetectorID\n";
-       G4cout << "[CalorimeterSD] Opened 'outputdata.txt' for logging." << G4endl;
-       G4cout.flush();
-     }
- } else {
-   G4cerr << "[CalorimeterSD] Warning: Could not open 'outputdata.txt'." << G4endl;
- }
+
+  auto detConst = static_cast<const B4c::DetectorConstruction*>(
+      G4RunManager::GetRunManager()->GetUserDetectorConstruction());
+
+  G4String baseFilename = detConst->GetOutputFileName();
+
+  // In multithreaded mode each worker thread gets its own file to avoid
+  // race conditions. Files are named e.g. loweroutput_G4_W_1mm_t0.txt
+  // The plotting script merges them automatically.
+  G4String filename = baseFilename;
+  if (G4Threading::IsWorkerThread()) {
+    // Insert thread ID before .txt
+    G4String threadSuffix = "_t" + std::to_string(G4Threading::G4GetThreadId());
+    auto dotPos = baseFilename.rfind('.');
+    if (dotPos != G4String::npos)
+      filename = baseFilename.substr(0, dotPos) + threadSuffix + baseFilename.substr(dotPos);
+    else
+      filename = baseFilename + threadSuffix;
+  }
+
+  outputFile.open(filename, std::ios::out | std::ios::trunc);
+  if (outputFile.is_open()) {
+    outputFile << "EventID,TrackID,ParentID,Particle,KineticEnergy,Volume,DetectorID\n";
+    G4cout << "[CalorimeterSD] Thread " << G4Threading::G4GetThreadId()
+           << " writing to " << filename << G4endl;
+  } else {
+    G4cerr << "[CalorimeterSD] Warning: Could not open " << filename << G4endl;
+  }
 }
 
 CalorimeterSD::~CalorimeterSD()
@@ -44,64 +63,51 @@ void CalorimeterSD::Initialize(G4HCofThisEvent* hce)
   auto hcID = G4SDManager::GetSDMpointer()->GetCollectionID(collectionName[0]);
   hce->AddHitsCollection(hcID, fHitsCollection);
 
-  for (G4int i = 0; i < fNofCells + 1; ++i) 
+  for (G4int i = 0; i < fNofCells + 1; ++i)
     fHitsCollection->insert(new CalorHit());
-  }
+
+  fLoggedTracks.clear();
+}
 
 G4bool CalorimeterSD::ProcessHits(G4Step* step, G4TouchableHistory*)
 {
-    // Particle info
-    auto particle = step->GetTrack()->GetDefinition()->GetParticleName();
-    auto kineticEnergy = step->GetTrack()->GetKineticEnergy();
-    auto currentVol = step->GetPreStepPoint()->GetPhysicalVolume();
-    if (!currentVol) return false;  // ignore steps outside world
+  auto* track = step->GetTrack();
+  if (!track) return false;
 
-    auto volumeName = currentVol->GetName();
-    auto trackID = step->GetTrack()->GetTrackID();
-    auto parentID = step->GetTrack()->GetParentID();
-    G4double energy_keV = kineticEnergy / CLHEP::keV;
+  // Only photons
+  if (track->GetDefinition()->GetParticleName() != "gamma") return true;
 
-    // ======================
-    // DEBUG: print first few gammas inside detector
-    static G4int gammaCounter = 0;
-    const G4int maxGammaDebug = 10;  // only first 10 gammas
-    if (particle == "gamma" && volumeName == "Detector" && gammaCounter < maxGammaDebug) {
-        G4cout << "[DEBUG-GAMMA] Event "
-               << G4RunManager::GetRunManager()->GetCurrentEvent()->GetEventID()
-               << " particle=" << particle
-               << " E(MeV)=" << kineticEnergy / CLHEP::MeV
-               << " volume=" << volumeName
-               << G4endl;
-        gammaCounter++;
-    }
-    // ======================
+  // Only record each track once (first entry into the detector plane)
+  G4int trackID = track->GetTrackID();
+  if (fLoggedTracks.count(trackID) > 0) return true;
+  fLoggedTracks.insert(trackID);
 
-    // Log gammas inside detector in the 10–100 keV window
-    if (volumeName == "Detector" && particle == "gamma")
-    {
-        int detectorID = 1;
+  auto* event = G4RunManager::GetRunManager()->GetCurrentEvent();
+  if (!event) return true;
 
-        if (outputFile.is_open()) {
-            outputFile << G4RunManager::GetRunManager()->GetCurrentEvent()->GetEventID() << ","
-                       << trackID << ","
-                       << parentID << ","
-                       << particle << ","
-                       << kineticEnergy / CLHEP::MeV << ","
-                       << volumeName << ","
-                       << detectorID << "\n";
-            outputFile.flush();  // ensures live updates
-        }
-    }
+  auto eventID       = event->GetEventID();
+  auto parentID      = track->GetParentID();
+  auto kineticEnergy = track->GetKineticEnergy();
 
-    return true;
+  if (outputFile.is_open()) {
+    outputFile << eventID       << ","
+               << trackID       << ","
+               << parentID      << ","
+               << "gamma"       << ","
+               << kineticEnergy / CLHEP::MeV << ","
+               << "Detector"    << ","
+               << 0             << "\n";
+  }
+
+  return true;
 }
-
-
-
-
 
 void CalorimeterSD::EndOfEvent(G4HCofThisEvent*)
 {
+  // NOTE: flush removed — OS buffers writes automatically and flushes
+  // on close, which is far faster than flushing every single event.
+  // The file is safely closed in the destructor when the run ends.
+
   if (verboseLevel > 1) {
     auto nofHits = fHitsCollection->entries();
     G4cout << G4endl << "-------->Hits Collection: in this event they are "
@@ -109,7 +115,6 @@ void CalorimeterSD::EndOfEvent(G4HCofThisEvent*)
     for (std::size_t i = 0; i < nofHits; ++i)
       (*fHitsCollection)[i]->Print();
   }
-
-  if (outputFile.is_open()) outputFile.flush();
 }
+
 } // namespace B4c
